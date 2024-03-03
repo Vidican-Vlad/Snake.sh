@@ -83,7 +83,6 @@ moveSnake () {
 
 }
 
-
 debugPrintTail () {
 
 	for element in "${TAIL[@]}"; do
@@ -107,8 +106,6 @@ checkIfPointIsInTail() {
 	done
 	return 1;#as in return false
 }
-
-
 
 drawMap (){
 
