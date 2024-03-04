@@ -31,6 +31,7 @@ TAIL_LENGTH=0
 TAIL=()
 #no boolean available
 EXTEND_TAIL=0
+GAME_OVER=0
 
 determineInput () {
 
@@ -39,14 +40,16 @@ determineInput () {
 		exit 1
 	fi
 
-	if [[ $1 == "w" ]]; then
+	if [[ $1 == "w" && $DIRECTION != "DOWN" ]]; then
 		DIRECTION="UP"
-	elif [[ $1 == "s" ]]; then
+	elif [[ $1 == "s" && $DIRECTION != "UP" ]]; then
 		DIRECTION="DOWN"
-	elif [[ $1 == "a" ]]; then
+	elif [[ $1 == "a" && $DIRECTION != "RIGHT" ]]; then
 		DIRECTION="LEFT"
-	elif [[ $1 == "d" ]]; then
+	elif [[ $1 == "d" && $DIRECTION != "LEFT" ]]; then
 		DIRECTION="RIGHT"
+	elif [[ $1 == "e" ]]; then
+		GAME_OVER=1
 	fi
 }
 
@@ -55,23 +58,34 @@ generateApple (){
 	limit_x=$((WIDTH -2))
 	limit_y=$((HEIGHT -2))
 	
-	appleX=$(((RANDOM % limit_x) + 2))
-	appleY=$(((RANDOM % limit_y) + 2))
+	while true; do
+		appleX=$(((RANDOM % limit_x) + 2))
+		appleY=$(((RANDOM % limit_y) + 2))
+		
+		if ! checkIfPointIsInTail $appleX $appleY; then
+			return 1;
+		fi
+		echo "generated values: x=  $appleX and y= $appleY, but were invalid" >> tmp.log
+	done
 	
 
 }
 
 moveSnake () {
+
+	if [[ $GAME_OVER == 1 ]]; then
+		return 1
+	fi
 	
 	TAIL+=($pX $pY)
 
-	if [[ $DIRECTION == "UP" && $pY -gt 2 ]]; then
+	if [[ $DIRECTION == "UP" && $pY -gt 1 ]]; then
 		((--pY))
-	elif [[ $DIRECTION == "DOWN" && $pY -lt $((HEIGHT -1)) ]]; then
+	elif [[ $DIRECTION == "DOWN" && $pY -lt $HEIGHT ]]; then
 		((++pY))
-	elif [[ $DIRECTION == "LEFT" && $pX -gt 2 ]]; then
+	elif [[ $DIRECTION == "LEFT" && $pX -gt 1 ]]; then
 		((--pX))
-	elif [[ $DIRECTION == "RIGHT" && $pX -lt $((WIDTH -1)) ]]; then
+	elif [[ $DIRECTION == "RIGHT" && $pX -lt $WIDTH ]]; then
 		((++pX))
 	fi
 
@@ -108,6 +122,10 @@ checkIfPointIsInTail() {
 }
 
 drawMap (){
+	
+	if [[ $GAME_OVER == 1 ]]; then
+		return 1;
+	fi
 
 	clear
 	for (( row=1; row<=HEIGHT; row++ )); do
@@ -137,14 +155,27 @@ processCollision () {
 		((++TAIL_LENGTH))
 		EXTEND_TAIL=1
 		generateApple
+	elif checkIfPointIsInTail $pX $pY; then
+		GAME_OVER=1
+	elif [[ $pX == 1 || $pY == 1 || $pX == $WIDTH || $pY == $HEIGHT ]]; then
+		GAME_OVER=1
 	fi
 }
 
 gameLogic (){
+	
+	if [[ $GAME_OVER == 1 ]]; then
+		
+		echo -e  "\n\n!!!!!!!!!!!!!!!! GAME OVER !!!!!!!!!!!!!!!!!!\n\n"
+		exit 1
+
+	fi
+
 	( sleep 0.12; kill -ALRM $$ ) &
 
-	processCollision
+		
 	moveSnake
+	processCollision
 	drawMap
 }
 
@@ -156,6 +187,8 @@ gameLogic
 generateApple
 
 while true; do
-	read -rsn1 input
-	determineInput $input
+	if [[ $GAME_OVER == 0 ]]; then
+		read -rsn1 input
+		determineInput $input
+	fi
 done
